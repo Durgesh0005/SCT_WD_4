@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ultimate To-Do App</title>
+  <style>
+    :root {
+      --bg: #f4f4f4;
+      --text: #222;
+      --card: #fff;
+    }
+
+    body.dark {
+      --bg: #181818;
+      --text: #f1f1f1;
+      --card: #2a2a2a;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 650px;
+      margin: auto;
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .task-input, .top-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"], input[type="datetime-local"], select {
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 100%;
+    }
+
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #333;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .task-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      background: var(--bg);
+      border-left: 5px solid #333;
+      margin-bottom: 12px;
+      padding: 12px;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    li.completed {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+
+    .meta, .category {
+      font-size: 12px;
+      color: gray;
+    }
+
+    .actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+
+    .top-actions select {
+      flex: 1;
+    }
+
+    .toggle-dark {
+      float: right;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+      .top-actions {
+        flex-direction: column;
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📝 Ultimate To-Do App</h1>
+    <div class="toggle-dark" onclick="toggleDarkMode()">🌓 Toggle Dark Mode</div>
+
+    <div class="task-input">
+      <input type="text" id="taskText" placeholder="Task description..." />
+      <input type="datetime-local" id="taskDateTime" />
+      <select id="taskCategory">
+        <option value="">Choose Category</option>
+        <option value="Work">Work</option>
+        <option value="Study">Study</option>
+        <option value="Personal">Personal</option>
+        <option value="Others">Others</option>
+      </select>
+      <button onclick="addTask()">➕ Add Task</button>
+    </div>
+
+    <div class="top-actions">
+      <select id="filterCategory" onchange="renderTasks()">
+        <option value="">🔍 Filter by Category</option>
+        <option value="Work">Work</option>
+        <option value="Study">Study</option>
+        <option value="Personal">Personal</option>
+        <option value="Others">Others</option>
+      </select>
+      <button onclick="exportTasks()">⬇ Export Tasks</button>
+      <button onclick="document.getElementById('importFile').click()">⬆ Import Tasks</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTasks(event)">
+    </div>
+
+    <ul id="taskList" class="task-list"></ul>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+    function saveTasks() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+    }
+
+    function addTask() {
+      const text = document.getElementById("taskText").value.trim();
+      const dateTime = document.getElementById("taskDateTime").value;
+      const category = document.getElementById("taskCategory").value;
+
+      if (!text) return alert("Please enter a task.");
+
+      tasks.push({
+        text,
+        dateTime,
+        category,
+        completed: false,
+        notified: false
+      });
+
+      document.getElementById("taskText").value = "";
+      document.getElementById("taskDateTime").value = "";
+      document.getElementById("taskCategory").value = "";
+
+      saveTasks();
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const list = document.getElementById("taskList");
+      const filter = document.getElementById("filterCategory").value;
+      list.innerHTML = "";
+
+      tasks.forEach((task, index) => {
+        if (filter && task.category !== filter) return;
+
+        const li = document.createElement("li");
+        li.className = task.completed ? "completed" : "";
+
+        li.innerHTML = `
+          <strong>${task.text}</strong>
+          ${task.category ? `<div class="category">📁 ${task.category}</div>` : ""}
+          ${task.dateTime ? `<div class="meta">⏰ ${new Date(task.dateTime).toLocaleString()}</div>` : ""}
+          <div class="actions">
+            <button onclick="toggleComplete(${index})">✔</button>
+            <button onclick="editTask(${index})">✏</button>
+            <button onclick="deleteTask(${index})">🗑</button>
+          </div>
+        `;
+
+        list.appendChild(li);
+      });
+    }
+
+    function toggleComplete(index) {
+      tasks[index].completed = !tasks[index].completed;
+      saveTasks();
+      renderTasks();
+    }
+
+    function editTask(index) {
+      const newText = prompt("Edit Task", tasks[index].text);
+      if (newText && newText.trim() !== "") {
+        tasks[index].text = newText.trim();
+        saveTasks();
+        renderTasks();
+      }
+    }
+
+    function deleteTask(index) {
+      if (confirm("Delete this task?")) {
+        tasks.splice(index, 1);
+        saveTasks();
+        renderTasks();
+      }
+    }
+
+    function checkReminders() {
+      const now = new Date();
+      tasks.forEach(task => {
+        if (task.dateTime && !task.completed && !task.notified) {
+          const taskTime = new Date(task.dateTime);
+          if (taskTime <= now) {
+            alert(`🔔 Reminder: "${task.text}" is due now!`);
+            task.notified = true;
+          }
+        }
+      });
+      saveTasks();
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+    }
+
+    function exportTasks() {
+      const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "my-tasks.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function importTasks(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            tasks = imported;
+            saveTasks();
+            renderTasks();
+            alert("✅ Tasks imported successfully!");
+          } else {
+            alert("Invalid file format.");
+          }
+        } catch {
+          alert("Failed to parse file.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    renderTasks();
+    setInterval(checkReminders, 60000);
+  </script>
+</body>
+</html>
